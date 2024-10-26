@@ -19,18 +19,20 @@ from libqtile.widget.base import _TextBox
 
 class RedshiftWidget(_TextBox, base.PaddingMixin):
     is_enabled = False
-    enabled_txt = ""
-    disabled_txt = ""
+
     orientations = base.ORIENTATION_HORIZONTAL
-    temperature = 1700
 
     defaults = [
-        ("disabled_txt", disabled_txt, "Redshift disabled text"),
-        ("enabled_txt", enabled_txt, "Redshift enabled text"),
+        ("brightness", 1.0, "Redshift brightness"),
+        ("disabled_txt", "", "Redshift disabled text"),
+        ("enabled_txt", "", "Redshift enabled text"),
+        ("gamma_red", 1.0, "Redshift gamma red"),
+        ("gamma_blue", 1.0, "Redshift gamma blue"),
+        ("gamma_green", 1.0, "Redshift gamma green"),
         ("font", "sans", "Default font"),
-        ("fontsize", None, "Font size"),
+        ("fontsize", 50, "Font size"),
         ("foreground", "ffffff", "Font colour for information text"),
-        ("temperature", temperature, "Redshift temperature to set when enabled"),
+        ("temperature", 1700, "Redshift temperature to set when enabled"),
     ]
 
     _dependencies = ["redshift"]
@@ -64,14 +66,32 @@ class RedshiftWidget(_TextBox, base.PaddingMixin):
             logger.exception(f"Exception trying to reset redshift: {command_output}")
             self._render_error_text()
 
-    def _change_redshift_temp(self):
+    def _enable_redshift(self):
         command_output = ""
+        gamma_val = (
+            str(self.gamma_red)
+            + ":"
+            + str(self.gamma_green)
+            + ":"
+            + str(self.gamma_blue)
+        )
         try:
-            command_output = subprocess.run(
-                ["redshift", "-O", str(self.temperature)],
+            command = subprocess.run(
+                [
+                    "redshift",
+                    "-P",
+                    "-O",
+                    str(self.temperature),
+                    "-b",
+                    str(self.brightness),
+                    "-g",
+                    gamma_val,
+                ],
                 check=True,
                 capture_output=True,
-            ).stdout
+            )
+            command_output = command.stdout
+            logger.info(command.args)
         except Exception:
             logger.exception(
                 f"Exception trying to set redshift temperature: {command_output}"
@@ -83,7 +103,7 @@ class RedshiftWidget(_TextBox, base.PaddingMixin):
         if self.is_enabled:
             self._reset_redshift()
         else:
-            self._change_redshift_temp()
+            self._enable_redshift()
         self.is_enabled = not self.is_enabled
         self._set_text()
         self.bar.draw()
